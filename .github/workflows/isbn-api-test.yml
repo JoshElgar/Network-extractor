@@ -1,0 +1,32 @@
+name: ISBN API test
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - .github/workflows/isbn-api-test.yml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test public book APIs
+        shell: bash
+        run: |
+          python - <<'PY'
+          import time, urllib.parse, urllib.request
+          tests = [
+              ("google", "https://www.googleapis.com/books/v1/volumes?" + urllib.parse.urlencode({"q": 'intitle:"All Quiet on the Western Front" inauthor:"Erich Maria Remarque"', "maxResults": 5})),
+              ("openlibrary", "https://openlibrary.org/search.json?" + urllib.parse.urlencode({"title": "All Quiet on the Western Front", "author": "Erich Maria Remarque", "limit": 3})),
+          ]
+          for name, url in tests:
+              started = time.time()
+              request = urllib.request.Request(url, headers={"User-Agent": "ISBN-enrichment-test/1.0"})
+              try:
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      data = response.read()
+                      print(name, response.status, len(data), round(time.time() - started, 2))
+              except Exception as exc:
+                  print(name, type(exc).__name__, str(exc), round(time.time() - started, 2))
+          PY
