@@ -1,0 +1,53 @@
+name: ISBN enrichment missing rows fast
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - isbn-enrichment/enrich_missing_fast.py
+      - isbn-enrichment/data/missing_books_forced.json
+      - .github/workflows/isbn-enrichment-missing-fast.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out catalogue data
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Assign ISBNs to missing rows
+        run: python isbn-enrichment/enrich_missing_fast.py
+
+      - name: Commit result files
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add isbn-enrichment/results_missing_fast || true
+          if git diff --cached --quiet; then
+            echo "No result changes to commit"
+          else
+            git commit -m "Add fast forced ISBN results [skip ci]"
+            git push || echo "Result push was unavailable; use the workflow artifact instead"
+          fi
+
+      - name: Upload result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isbn-enrichment-missing-fast-results
+          path: isbn-enrichment/results_missing_fast
+          if-no-files-found: warn
+          retention-days: 7
