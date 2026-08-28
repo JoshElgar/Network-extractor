@@ -1,0 +1,35 @@
+name: ISBN group query test
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - .github/workflows/isbn-group-test.yml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test grouped Open Library query
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          clauses = [
+            '(title:"Pure Mathematics 1" AND author:"P. K. Backhouse" AND publisher:"Longman")',
+            '(title:"Billericay and its High Street" AND author:"Harry Richman")',
+            '(title:"101 Dalmatians")',
+            '(title:"Tis" AND author:"Frank McCourt" AND publisher:"Flamingo")',
+            '(title:"Stamp Album" AND author:"Terence Stamp")',
+          ]
+          params = {"q": " OR ".join(clauses), "lang": "en", "fields": "key,title,author_name,editions,editions.key,editions.title,editions.publisher,editions.publish_date,editions.isbn_10,editions.isbn_13", "limit": 60}
+          url = "https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)
+          request = urllib.request.Request(url, headers={"User-Agent": "JoshElgarBookCatalogueISBN/1.0 (joshelgar@gmail.com)", "From": "joshelgar@gmail.com"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+          print("numFound", payload.get("numFound"), "docs", len(payload.get("docs", [])))
+          for doc in payload.get("docs", [])[:15]:
+              edition = ((doc.get("editions") or {}).get("docs") or [{}])[0]
+              print(doc.get("title"), doc.get("author_name"), edition.get("title"), edition.get("publisher"), edition.get("isbn_13"), edition.get("isbn_10"))
+          PY
