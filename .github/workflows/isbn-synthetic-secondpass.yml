@@ -1,0 +1,43 @@
+name: ISBN synthetic rows real second pass
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - isbn-enrichment/enrich_synthetic_secondpass.py
+      - isbn-enrichment/data/synthetic_ids_208.json
+      - .github/workflows/isbn-synthetic-secondpass.yml
+  workflow_dispatch:
+
+jobs:
+  enrich:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - name: Check out catalogue data
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Search for real ISBNs
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+          CHUNK_COUNT: 4
+        run: python isbn-enrichment/enrich_synthetic_secondpass.py
+
+      - name: Upload second-pass result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isbn-synthetic-secondpass-${{ matrix.chunk }}
+          path: isbn-enrichment/results_synthetic_secondpass/results_chunk_${{ matrix.chunk }}.json
+          if-no-files-found: warn
+          retention-days: 7
