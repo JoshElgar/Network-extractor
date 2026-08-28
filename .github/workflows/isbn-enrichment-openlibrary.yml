@@ -1,0 +1,51 @@
+name: ISBN enrichment Open Library
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - isbn-enrichment/enrich_openlibrary.py
+      - .github/workflows/isbn-enrichment-openlibrary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out catalogue data
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Open Library ISBN matcher
+        run: python isbn-enrichment/enrich_openlibrary.py
+
+      - name: Commit result files to the branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add isbn-enrichment/results_openlibrary
+          if git diff --cached --quiet; then
+            echo "No result changes to commit"
+          else
+            git commit -m "Add Open Library ISBN results [skip ci]"
+            git push || echo "Result push was unavailable; use the workflow artifact instead"
+          fi
+
+      - name: Upload result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isbn-enrichment-openlibrary-results
+          path: isbn-enrichment/results_openlibrary
+          if-no-files-found: error
+          retention-days: 7
