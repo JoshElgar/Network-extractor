@@ -1,0 +1,45 @@
+name: ISBN enrichment missing rows parallel chunks
+
+on:
+  push:
+    branches:
+      - isbn-enrichment-20260826
+    paths:
+      - isbn-enrichment/enrich_missing_chunk.py
+      - isbn-enrichment/data/missing_ids_520.json
+      - .github/workflows/isbn-enrichment-missing-chunks.yml
+  workflow_dispatch:
+
+jobs:
+  enrich:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Check out catalogue data
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Assign ISBNs for chunk
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+          CHUNK_COUNT: 6
+        run: python isbn-enrichment/enrich_missing_chunk.py
+
+      - name: Upload chunk result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isbn-missing-chunk-${{ matrix.chunk }}
+          path: |
+            isbn-enrichment/results_missing_chunks/results_chunk_${{ matrix.chunk }}.json
+            isbn-enrichment/results_missing_chunks/summary_chunk_${{ matrix.chunk }}.json
+          if-no-files-found: warn
+          retention-days: 7
